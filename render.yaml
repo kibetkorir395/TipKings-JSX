@@ -1,0 +1,31 @@
+# Render.com hosting configuration for the TipKings TanStack Start app.
+# Connect this repo on https://render.com and Render will read this file.
+services:
+  - type: web
+    name: tipkings
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: node .output/server/index.mjs
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "10000"
+      # Add these in the Render dashboard (Environment) — do not commit secrets:
+      - key: KORAPAY_SECRET_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_PROJECT_ID
+        sync: false
