@@ -1,16 +1,13 @@
-// Static client-side stub
-/*export const getPublicPredictions = async () => [];
-export const getEntitledPredictions = async () => [];
-*/
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware.js";
 
 /**
  * Public predictions feed. VIP rows are returned as locked teasers with the
  * sensitive tip/odds stripped server-side, so paid content is never sent to
  * non-entitled visitors even though the match row is still shown (blurred).
  *
- * @param {{ supabase?: any, userId?: string }} [_ctx]
+ * @param {Request} [_request]  (unused; kept for a uniform signature)
  */
-export async function getPublicPredictions(_ctx = {}) {
+export async function getPublicPredictions(_request) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("predictions")
@@ -26,11 +23,10 @@ export async function getPublicPredictions(_ctx = {}) {
  * subscription, full VIP tip/odds are returned; otherwise VIP rows are masked
  * exactly like the public feed. Also reports the VIP entitlement flag.
  *
- * @param {{ supabase: any, userId?: string }} ctx
+ * @param {Request} request
  */
-export async function getEntitledPredictions(ctx = {}) {
-  const { supabase, userId } = ctx;
-  if (!userId) throw new Error("Unauthorized");
+export async function getEntitledPredictions(request) {
+  const { supabase, userId } = await requireSupabaseAuth(request);
 
   const { data: active } = await supabase.rpc("has_active_subscription", {
     _user_id: userId,

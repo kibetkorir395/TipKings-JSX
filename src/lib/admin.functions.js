@@ -1,23 +1,27 @@
-// Static client-side stub (replaces TanStack Start server functions)
-/*export const savePrediction = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-export const deletePrediction = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-export const saveHistory = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-export const deleteHistory = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-*/
-
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware.js";
 
 /**
- * Admin guard. Replaces the requireAdmin middleware.
- * Throws if the user does not have the admin role.
+ * Admin guard. Replaces the requireAdmin middleware (which itself wrapped
+ * requireSupabaseAuth). Validates auth, then checks the admin role server-side.
+ * RLS already restricts writes to admins, but this lets us return clean,
+ * explicit errors and refuse the request before any write is attempted.
+ *
+ * @param {Request} request
+ * @returns {Promise<{ supabase: any, userId: string, claims: Record<string, any> }>}
  */
-async function assertAdmin(supabase, userId) {
+async function requireAdmin(request) {
+  const ctx = await requireSupabaseAuth(request);
+  const { supabase, userId } = ctx;
+
   const { data, error } = await supabase.rpc("has_role", {
     _user_id: userId,
     _role: "admin",
   });
   if (error) throw new Error("Could not verify permissions");
   if (!data) throw new Error("Forbidden: admin role required");
+
+  return ctx;
 }
 
 export class ConflictError extends Error {
@@ -60,11 +64,11 @@ const idSchema = z.object({ id: z.string().uuid() });
 
 /**
  * Save (insert or update) a prediction.
- * @param {{ supabase: any, userId: string }} ctx
+ * @param {Request} request
  * @param {unknown} input
  */
-export async function savePrediction({ supabase, userId }, input) {
-  await assertAdmin(supabase, userId);
+export async function savePrediction(request, input) {
+  const { supabase } = await requireAdmin(request);
   const data = predictionSchema.parse(input);
   const { id, expectedUpdatedAt, ...payload } = data;
 
@@ -88,11 +92,11 @@ export async function savePrediction({ supabase, userId }, input) {
 
 /**
  * Delete a prediction.
- * @param {{ supabase: any, userId: string }} ctx
+ * @param {Request} request
  * @param {unknown} input
  */
-export async function deletePrediction({ supabase, userId }, input) {
-  await assertAdmin(supabase, userId);
+export async function deletePrediction(request, input) {
+  const { supabase } = await requireAdmin(request);
   const data = idSchema.parse(input);
   const { error } = await supabase.from("predictions").delete().eq("id", data.id);
   if (error) throw new Error(error.message);
@@ -101,11 +105,11 @@ export async function deletePrediction({ supabase, userId }, input) {
 
 /**
  * Save (insert or update) a winning history entry.
- * @param {{ supabase: any, userId: string }} ctx
+ * @param {Request} request
  * @param {unknown} input
  */
-export async function saveHistory({ supabase, userId }, input) {
-  await assertAdmin(supabase, userId);
+export async function saveHistory(request, input) {
+  const { supabase } = await requireAdmin(request);
   const data = historySchema.parse(input);
   const { id, expectedUpdatedAt, ...payload } = data;
 
@@ -129,11 +133,11 @@ export async function saveHistory({ supabase, userId }, input) {
 
 /**
  * Delete a winning history entry.
- * @param {{ supabase: any, userId: string }} ctx
+ * @param {Request} request
  * @param {unknown} input
  */
-export async function deleteHistory({ supabase, userId }, input) {
-  await assertAdmin(supabase, userId);
+export async function deleteHistory(request, input) {
+  const { supabase } = await requireAdmin(request);
   const data = idSchema.parse(input);
   const { error } = await supabase.from("winning_history").delete().eq("id", data.id);
   if (error) throw new Error(error.message);

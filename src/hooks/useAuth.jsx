@@ -44,7 +44,6 @@ export function AuthProvider({ children }) {
             }
         });
         return () => sub.subscription.unsubscribe();
-        setLoading(false);
     }, []);
     const signOut = async () => {
         await supabase.auth.signOut();

@@ -1,16 +1,12 @@
-// Static client-side stub (replaces TanStack Start server functions)
-/*export const detectCountry = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-export const initializeKorapayCharge = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-export const verifyKorapayCharge = async () => ({ data: [], predictions: [], subscriptions: [], payments: [], stats: {}, success: true });
-*/
-
 import { z } from "zod";
 import { plans, planAmount } from "@/data/predictions";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware.js";
 
 /** @typedef {"NGN" | "KES"} Currency */
 
 /**
  * Extract the client IP from a standard Request, honoring X-Forwarded-For.
+ * Replaces TanStack's getRequestIP({ xForwardedFor: true }).
  * @param {Request} request
  * @returns {string | undefined}
  */
@@ -23,6 +19,7 @@ function getRequestIP(request) {
 
 /**
  * Extract the request host (e.g. "example.com").
+ * Replaces TanStack's getRequestHost().
  * @param {Request} request
  * @returns {string | undefined}
  */
@@ -37,17 +34,12 @@ function getRequestHost(request) {
   }
 }
 
-/**
- * Admin guard is not needed here, but auth is: assert the caller is signed in.
- * (Replaces requireSupabaseAuth middleware.)
- * @param {{ userId?: string }} ctx
- */
-function assertAuth(ctx) {
-  if (!ctx?.userId) throw new Error("Unauthorized");
-}
-
 /** Free IP geolocation — returns the visitor's ISO country code + currency. */
-export async function detectCountry({ request } = {}) {
+/**
+ * @param {Request} request
+ * @returns {Promise<{ country: string, currency: Currency }>}
+ */
+export async function detectCountry(request) {
   /** @type {{ country: string, currency: Currency }} */
   const fallback = { country: "KE", currency: "KES" };
   try {
@@ -95,13 +87,11 @@ const initializeInputSchema = z.object({
 
 /**
  * Initialize a Korapay charge and return the hosted checkout URL.
- * @param {{ supabase: any, userId?: string, request?: Request }} ctx
+ * @param {Request} request
  * @param {unknown} input
  */
-export async function initializeKorapayCharge(ctx, input) {
-  const { supabase, userId, request } = ctx ?? {};
-  assertAuth(ctx);
-
+export async function initializeKorapayCharge(request, input) {
+  const { supabase, userId } = await requireSupabaseAuth(request);
   const data = initializeInputSchema.parse(input);
 
   const secret = process.env.KORAPAY_SECRET_KEY;
@@ -168,10 +158,10 @@ const verifyInputSchema = z.object({
 
 /**
  * Verify a charge status by reference (used by the return/status page).
- * @param {{ request?: Request }} _ctx  (unused; kept for a uniform signature)
+ * @param {Request} _request  (unused; kept for a uniform signature)
  * @param {unknown} input
  */
-export async function verifyKorapayCharge(_ctx, input) {
+export async function verifyKorapayCharge(_request, input) {
   const data = verifyInputSchema.parse(input);
 
   const secret = process.env.KORAPAY_SECRET_KEY;
